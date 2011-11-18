@@ -90,11 +90,10 @@ def download(urlList, trackDict):
         f.close()
 
 def main():
+
     ### Perpetual Loop Auto-submit business:
     home = os.getcwd()
     readyListFileName = "ready_list.txt"
-    f = open(readyListFileName,'wb')
-    f.write()
     lockFileName = readyListFileName + ".lck"
     ### Exit if last list still pending, wait for it to be renamed/removed.
     if os.access( readyListFileName, os.F_OK ) is True:
@@ -108,8 +107,11 @@ def main():
         print ( 'ABORT: %s lockfile exists (Another process generating list'
                 'already? Should be deleted when complete!)' % lockFileName )
         exit(0)
-    ### Touch a lock file while the script is running.
-    open( lockFileName, 'w' ).close()
+    ### Touch a lock and list file.
+    touchLi = open(readyListFileName,'wb')
+    touchLi.write('')
+    touchLo = open(lockFileName, 'wb')
+    touchLo.write('')
 
     if not os.path.exists('/1/incoming/tmp/FMA'):
         os.mkdir('/1/incoming/tmp/FMA')
