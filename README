@@ -1,9 +1,12 @@
+### About
+
 get-fma.py ingests content from http://freemusicarchive.org into 
 http://archive.org on a daily basis. Most of the code is not specific to 
 archive.org, and the script could easily be tweaked for general use.
 (by ignoring fma.php, and doing a bit of clean-up to get-fma.py).
 
----
+
+### Description
 
 get-fma.py parses through JSON returned by the FMA API 
 (http://freemusicarchive.org/api/docs/), generates the necessary metadata
@@ -38,9 +41,8 @@ o ready_list.txt.lck:
 These include the auto_submit.php tasklog, and the individual tasklogs for
 each item (archive.php, derive.php, bup.php, etc.).
 
----
 
-TODO
+### TODO
 
 o Implement cleaner logging.
 o Prepare for FMA API changes ( "Starting in April 2012, we will refuse API 
