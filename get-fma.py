@@ -93,6 +93,8 @@ def main():
     ### Perpetual Loop Auto-submit business:
     home = os.getcwd()
     readyListFileName = "ready_list.txt"
+    f = open(readyListFileName,'wb')
+    f.write()
     lockFileName = readyListFileName + ".lck"
     ### Exit if last list still pending, wait for it to be renamed/removed.
     if os.access( readyListFileName, os.F_OK ) is True:
@@ -136,8 +138,8 @@ def main():
                 archiveID = sanitizeString(archiveID)
                 archiveID = makeUTF8(archiveID)
             ### Check to see if this item is already in the Archive.
-            check_item = ( '/usr/bin/curl -s --location http://www.archive.org'
-                           '/services/check_identifier.php?identifier=%s'
+            check_item = ( '/usr/bin/curl -s --location "http://www.archive.org'
+                           '/services/check_identifier.php?identifier=%s"'
                            '| if grep -q "not_available"; then return 1; fi' %
                            archiveID )
             check_item = str(check_item)
