@@ -110,8 +110,10 @@ def main():
     ### Touch a lock and list file.
     touchLi = open(readyListFileName,'wb')
     touchLi.write('')
+    touch.close()
     touchLo = open(lockFileName, 'wb')
     touchLo.write('')
+    touch.close()
 
     if not os.path.exists('/1/incoming/tmp/FMA'):
         os.mkdir('/1/incoming/tmp/FMA')
@@ -220,6 +222,7 @@ def main():
     dataList = os.listdir(dataHome)
     f = open(readyListFileName,'wb')
     f.write('\n'.join(dataList))
+    f.close()
     ### Remove lock file...
     os.remove(lockFileName)
     print '\n!!!\nYOU HAVE SO MUCH MUSIC\n'
