@@ -43,7 +43,7 @@ def getTracks(albumID, data):
 
 def sanitizeString(dirty):
     clean = string.replace(dirty,"'",'')
-    clean = string.replace(dirty," ",'')
+    clean = string.replace(clean," ",'')
     clean = string.replace(clean,'"','')
     clean = string.replace(clean,';','')
     clean = string.replace(clean,'.','')
@@ -110,16 +110,16 @@ def main():
     ### Touch a lock and list file.
     touchLi = open(readyListFileName,'wb')
     touchLi.write('')
-    touch.close()
+    touchLi.close()
     touchLo = open(lockFileName, 'wb')
     touchLo.write('')
-    touch.close()
+    touchLo.close()
 
     if not os.path.exists('/1/incoming/tmp/FMA'):
         os.mkdir('/1/incoming/tmp/FMA')
     os.chdir('/1/incoming/tmp/FMA')
     dataHome = os.getcwd()
-    for i in range(0, 400):
+    for i in range(0, 350):
         url = ( 'http://freemusicarchive.org/api/get/albums.xml?'
                 'sort_by=album_id&sort_dir=desc&page=%s' % i )
         print "\n*** Page: %s ***\n\n" % i
