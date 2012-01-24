@@ -35,36 +35,6 @@ class details:
             return 1
 
 
-class search:
-
-    def __init__(self, query):
-        self.query = urlencode(query)
-        self.search_url = ('http://www.archive.org/advancedsearch.php?%s' % 
-                           self.query)
-        self.request = requests.get(self.search_url)
-        self.headers = self.request.headers
-        self.json_str = simplejson.loads(self.request.content)
-
-    def response(self):
-        return self.json_str['response']
-    def responseHeader(self):
-        return self.json_str['responseHeader']
-
-
-class upload:
-
-    def __init__(self, item, file):
-        self.s3_endpoint = 'http:s3.us.archive.org/%s/%s' % (item, file)
-
-    def uploadz(self):
-        h = {'x-amz-auto-make-bucket': '1', 
-             'x-archive-meta01-collection': 'test_collection',
-             'x-archive-meta-mediatype': 'texts',
-             'authorization': 'LOW U7TwGpIjERYE9cx4:47gEsUpL4y4tR4iE'}
-        d = open('intro_to_auto_submit.pdf','rb')
-        r = requests.put(self.s3_endpoint, data=h)
-        return r.status_code
-
 class parse:
 
     def __init__(self, url, params=None):
