@@ -24,7 +24,7 @@
         if (file_exists($listFile)==FALSE) {
             $cmd = "/1/data/ENV/bin/python fma.py";
             $datestamp = date("Ymd");
-            exec("{$cmd} >/home/jake/public_html/FMA/{$datestamp}-fma.log 2>&1 &");
+            exec("{$cmd} >/home/jake/public_html/FMA/{$datestamp}-fma.log 2>&1");
             echo "// Started generating list, coming back for it in 240 min...\n";
             echo "## AUTO_SUBMIT_COMMAND=SLEEP=240 min ##\n";
             echo "## AUTO_SUBMIT_COMMAND=SKIP ##\n";

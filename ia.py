@@ -113,7 +113,7 @@ class perpetual_loop:
         ### Exit if last list still pending, wait for it to be renamed/removed.
         if os.access( self.ready_fname, os.F_OK ) is True:
             print ( 'ABORT: %s exists (Not picked up yet? Should be renamed'
-                    'when retrieved by auto_submit loop!)' % self.ready_fname )
+                    ' when retrieved by auto_submit loop!)' % self.ready_fname )
             if os.access( self.lock_fname, os.F_OK ) is True:
                 os.remove(self.lock_fname)
             exit(0)
@@ -133,7 +133,7 @@ class perpetual_loop:
     def end(self):
         os.chdir(self.home)
         data_list = os.listdir(self.data_home)
-        f = open(readyListFileName,'wb')
-        f.write('\n'.join(dataList))
+        f = open(self.ready_fname,'wb')
+        f.write('\n'.join(data_list))
         f.close()
-        os.remove(lockFileName)        
+        os.remove(self.lock_fname)        

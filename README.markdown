@@ -1,3 +1,4 @@
+# NOTE: I need to update readme
 # About
 
 get-fma.py ingests content from http://freemusicarchive.org into 
