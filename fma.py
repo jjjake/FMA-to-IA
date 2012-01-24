@@ -5,9 +5,6 @@ import os
 from subprocess import call
 from datetime import datetime
 
-import requests
-import simplejson as json
-
 import ia
 
 
@@ -44,21 +41,26 @@ def get_tracks(album_id):
     
 def main():
 
-    total_pages = get_page(1)['total_pages']
     home = os.getcwd()
     ia.make('/1/incoming/tmp/FMA').dir()
     data_home = os.getcwd()
-
     ia.perpetual_loop(home,data_home).start()
+    total_pages = get_page(1)['total_pages']
 
-    for page_number in range(1,total_pages):
-        print('\n\nPage: %s/%s\n\n' % (page_number,total_pages))
+    for page_number in range(1,2):
+        print('\n\n\nPage: %s/%s\n\n' % (page_number,total_pages))
         dataset = get_page(page_number)['dataset']
         for item in dataset:
             identifier = '%s-%s' % (item['album_handle'],item['album_id'])
-            print('\n\nCreating item: %s\n' % identifier)
+            identifier = identifier.strip().strip('_')
+            if identifier <= 5:
+                logging.warning('Identifier too short: %s\nURL: %s' % 
+                                (identifier,item['album_url']))
+                continue
 
-            # Make meta_dict if the item doesn't already exist on the Archive.
+            print '\n\n~~~\n\nCreating item: %s\n' % identifier
+
+            # Create the item if it dosen't already exist!
             if not ia.details(identifier).exists():
                 ia.make(identifier).dir()
                 date_parsed = datetime.strptime(item['album_date_released'], 
@@ -75,7 +77,13 @@ def main():
                          mediatype='audio',
                          collection='freemusicarchive')
 
-                tracks = get_tracks(item['album_id'])
+                try:
+                    tracks = get_tracks(item['album_id'])
+                except IndexError:
+                    continue
+
+                # The license URL + artist's website is only available
+                # in the track dataset. Assign to meta_dict, here.
                 d['licencesurl'] = tracks[0]
                 d['artist_website'] = tracks[1]
 
@@ -91,6 +99,7 @@ def main():
                 cLogger.info('%s is already in the Archive.' % identifier)
 
     ia.perpetual_loop(home,data_home).end()
+    print("\n\n\nYOU HAVE SO MUCH MUSIC, GOODBYE!\n\n\n")
 
 if __name__ == "__main__":
     main()
