@@ -36,19 +36,27 @@ def get_tracks(album_id):
         track_dict = ia.parse(url).json()
         track_url = track_dict['track_file_url']
         track_name = track_dict['track_file'].split('/')[-1]
-        wget = 'wget -nc "%s" -O "%s"' % (track_url, track_name)
+        cLogger.info('Downloading track: %s' % track_name)
+        wget = 'wget -q -nc "%s" -O "%s"' % (track_url, track_name)
         call(wget, shell=True)
         
     return license, artist_website
     
 def main():
+
     total_pages = get_page(1)['total_pages']
-    ia.make('FMA').dir()
     home = os.getcwd()
+    ia.make('/1/incoming/tmp/FMA').dir()
+    data_home = os.getcwd()
+
+    ia.perpetual_loop(home,data_home).start()
+
     for page_number in range(1,total_pages):
+        print('\n\nPage: %s/%s\n\n' % (page_number,total_pages))
         dataset = get_page(page_number)['dataset']
         for item in dataset:
             identifier = '%s-%s' % (item['album_handle'],item['album_id'])
+            print('\n\nCreating item: %s\n' % identifier)
 
             # Make meta_dict if the item doesn't already exist on the Archive.
             if not ia.details(identifier).exists():
@@ -74,12 +82,15 @@ def main():
                 # Delete dictionary items with empty values.
                 meta_dict = dict([(k,v) for k,v in d.items() if v != None])
                 
+                cLogger.info('Generating metadata files')
                 ia.make(identifier, meta_dict).metadata()
 
-                os.chdir(home)
+                os.chdir(data_home)
 
             else:
                 cLogger.info('%s is already in the Archive.' % identifier)
+
+    ia.perpetual_loop(home,data_home).end()
 
 if __name__ == "__main__":
     main()

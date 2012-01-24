@@ -99,3 +99,41 @@ class make:
         if not os.path.exists(self.identifier):
             os.mkdir(self.identifier)
         os.chdir(self.identifier)
+
+
+class perpetual_loop:
+
+    def __init__(self, log_home, data_home):
+        self.home = log_home
+        self.data_home = data_home
+        self.ready_fname = os.path.join(self.home, 'ready_list.txt')
+        self.lock_fname = os.path.join(self.home, 'ready_list.txt.lck')
+
+    def start(self):
+        ### Exit if last list still pending, wait for it to be renamed/removed.
+        if os.access( self.ready_fname, os.F_OK ) is True:
+            print ( 'ABORT: %s exists (Not picked up yet? Should be renamed'
+                    'when retrieved by auto_submit loop!)' % self.ready_fname )
+            if os.access( self.lock_fname, os.F_OK ) is True:
+                os.remove(self.lock_fname)
+            exit(0)
+        ### If lock file exists, another process is already generating the list
+        if os.access( self.lock_fname, os.F_OK ) is True:
+            print ( 'ABORT: %s lockfile exists (Another process generating list'
+                    'already? Should be deleted when complete!)' % self.lock_fname )
+            exit(0)
+        ### Touch a lock and list file.
+        touchLi = open(self.ready_fname,'wb')
+        touchLi.write('')
+        touchLi.close()
+        touchLo = open(self.lock_fname, 'wb')
+        touchLo.write('')
+        touchLo.close()
+
+    def end(self):
+        os.chdir(self.home)
+        data_list = os.listdir(self.data_home)
+        f = open(readyListFileName,'wb')
+        f.write('\n'.join(dataList))
+        f.close()
+        os.remove(lockFileName)        
