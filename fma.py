@@ -1,9 +1,10 @@
-#!/usr/bin/env python
+#!/1/data/ENV/bin/python
 
 import logging,logging.config
 import os
 from subprocess import call
 from datetime import datetime
+from time import sleep
 
 import ia
 
@@ -13,14 +14,14 @@ cLogger = logging.getLogger('console')
 
 def get_page(page_number):
     url = 'http://freemusicarchive.org/api/get/albums.json'
-    params = dict(sort_by='album_date_released',sort_dir='desc',
-                  page=page_number)
+    params = dict(sort_by='album_date_released', sort_dir='asc',
+                  limit=50, page=page_number, api_key='WS35J1MULKPQQOEI')
     dataset = ia.parse(url,params).json()
     return dataset
 
 def get_tracks(album_id):
     url = 'http://freemusicarchive.org/api/get/tracks.json'
-    params = dict(album_id=album_id,limit=50)
+    params = dict(album_id=album_id, limit=50, api_key='WS35J1MULKPQQOEI')
     tracks = ia.parse(url,params).json()['dataset']
     track_ids = [ x['track_id'] for x in tracks ]
     license = tracks[0]['license_url']
@@ -36,7 +37,7 @@ def get_tracks(album_id):
         cLogger.info('Downloading track: %s' % track_name)
         wget = 'wget -q -nc "%s" -O "%s"' % (track_url, track_name)
         call(wget, shell=True)
-        
+
     return license, artist_website
     
 def main():
@@ -47,13 +48,13 @@ def main():
     ia.perpetual_loop(home,data_home).start()
     total_pages = get_page(1)['total_pages']
 
-    for page_number in range(1,2):
+    for page_number in range(7,total_pages):
         print('\n\n\nPage: %s/%s\n\n' % (page_number,total_pages))
         dataset = get_page(page_number)['dataset']
         for item in dataset:
             identifier = '%s-%s' % (item['album_handle'],item['album_id'])
-            identifier = identifier.strip().strip('_')
-            if identifier <= 5:
+            identifier = identifier.strip('-').strip('_')
+            if len(identifier) <= 5:
                 logging.warning('Identifier too short: %s\nURL: %s' % 
                                 (identifier,item['album_url']))
                 continue
@@ -61,8 +62,13 @@ def main():
             print '\n\n~~~\n\nCreating item: %s\n' % identifier
 
             # Create the item if it dosen't already exist!
-            if not ia.details(identifier).exists():
-                ia.make(identifier).dir()
+            try:
+                if not ia.details(identifier).exists():
+                    ia.make(identifier).dir()
+            except simplejson.decoder.JSONDecodeError:
+                logging.warning('Skipping: "%s", JSON Decode Error' % identifier)
+                continue
+
                 date_parsed = datetime.strptime(item['album_date_released'], 
                                                 '%m/%d/%Y').strftime('%Y-%m-%d')
                 d = dict(title=item['album_title'], 
