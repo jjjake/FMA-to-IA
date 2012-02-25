@@ -14,7 +14,7 @@ cLogger = logging.getLogger('console')
 
 def get_page(page_number):
     url = 'http://freemusicarchive.org/api/get/albums.json'
-    params = dict(sort_by='album_date_released', sort_dir='asc',
+    params = dict(sort_by='album_date_released', sort_dir='desc',
                   limit=50, page=page_number, api_key='WS35J1MULKPQQOEI')
     dataset = ia.parse(url,params).json()
     return dataset
@@ -37,7 +37,6 @@ def get_tracks(album_id):
         cLogger.info('Downloading track: %s' % track_name)
         wget = 'wget -q -nc "%s" -O "%s"' % (track_url, track_name)
         call(wget, shell=True)
-
     return license, artist_website
     
 def main():
@@ -48,7 +47,7 @@ def main():
     ia.perpetual_loop(home,data_home).start()
     total_pages = get_page(1)['total_pages']
 
-    for page_number in range(7,total_pages):
+    for page_number in range(0,total_pages):
         print('\n\n\nPage: %s/%s\n\n' % (page_number,total_pages))
         dataset = get_page(page_number)['dataset']
         for item in dataset:
@@ -61,13 +60,16 @@ def main():
 
             print '\n\n~~~\n\nCreating item: %s\n' % identifier
 
-            # Create the item if it dosen't already exist!
-            try:
-                if not ia.details(identifier).exists():
-                    ia.make(identifier).dir()
-            except simplejson.decoder.JSONDecodeError:
-                logging.warning('Skipping: "%s", JSON Decode Error' % identifier)
-                continue
+            ## Create the item if it dosen't already exist!
+            #try:
+            #    if not ia.details(identifier).exists():
+            #        ia.make(identifier).dir()
+            #except JSONDecodeError:
+            #    logging.warning('Skipping: "%s", JSON Decode Error' % identifier)
+            #    continue
+
+            if not ia.details(identifier).exists():
+                ia.make(identifier).dir()
 
                 date_parsed = datetime.strptime(item['album_date_released'], 
                                                 '%m/%d/%Y').strftime('%Y-%m-%d')
@@ -83,10 +85,7 @@ def main():
                          mediatype='audio',
                          collection='freemusicarchive')
 
-                try:
-                    tracks = get_tracks(item['album_id'])
-                except IndexError:
-                    continue
+                tracks = get_tracks(item['album_id'])
 
                 # The license URL + artist's website is only available
                 # in the track dataset. Assign to meta_dict, here.
@@ -95,14 +94,17 @@ def main():
 
                 # Delete dictionary items with empty values.
                 meta_dict = dict([(k,v) for k,v in d.items() if v != None])
-                
+
+                make = ia.make(identifier, meta_dict)
+                cLogger.info('Grabbing album image')
+                make.get_img_url()
                 cLogger.info('Generating metadata files')
-                ia.make(identifier, meta_dict).metadata()
+                make.metadata()
 
                 os.chdir(data_home)
 
-            else:
-                cLogger.info('%s is already in the Archive.' % identifier)
+            #else:
+            #    cLogger.info('%s is already in the Archive.' % identifier)
 
     ia.perpetual_loop(home,data_home).end()
     print("\n\n\nYOU HAVE SO MUCH MUSIC, GOODBYE!\n\n\n")
