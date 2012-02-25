@@ -5,10 +5,12 @@ import requests
 import simplejson
 from urllib import urlencode
 from lxml import etree
+import re
+import lxml.html
+from subprocess import call
 
 
 class details:
-
 
     def __init__(self, item):
         self.item = item
@@ -30,19 +32,27 @@ class details:
 
     def exists(self):
         if self.json_str == {}:
-            return 0
-        if self.json_str != {}:
             return 1
+        if self.json_str != {}:
+            return 0
 
 
 class parse:
 
     def __init__(self, url, params=None):
         self.request = requests.get(url=url, params=params)
-        self.json_str = simplejson.loads(self.request.content)
 
     def json(self):
+        self.json_str = simplejson.loads(self.request.content)
         return self.json_str
+
+    def html(self):
+        self.html = lxml.html.fromstring(self.request.content)
+        return self.html
+    
+    def html_links(self):
+        links = [ x for x in self.html().iterlinks() ]
+        return links
 
 
 class make:
@@ -69,6 +79,15 @@ class make:
         if not os.path.exists(self.identifier):
             os.mkdir(self.identifier)
         os.chdir(self.identifier)
+        
+    def get_img_url(self):
+        html = parse(self.meta_dict['source']).html()
+        div = html.xpath("//div[@class='album-image']//img") 
+        img_src = div[0].attrib['src']
+        img_url = img_src.replace('?width=290&height=290','')
+        fname = self.identifier + '.jpg'
+        wget = 'wget -q -c "%s" -O "%s"' % (img_url, fname)
+        call(wget, shell=True)
 
 
 class perpetual_loop:
@@ -107,3 +126,4 @@ class perpetual_loop:
         f.write('\n'.join(data_list))
         f.close()
         os.remove(self.lock_fname)        
+
