@@ -51,17 +51,16 @@ def get_tracks(album_id):
     except IndexError:
         license = None
         artist_website = None
-        logging.warning('No license! album ID: %s' % album_id)
+        logging.warning('No license! album ID: {0}'.format(album_id))
 
     # Download every track for the given album.
     for track in track_ids:
-        u = ('http://freemusicarchive.org/services/track/single/%s.json' %
-             track)
+        u = ('http://freemusicarchive.org/services/track/single/{0}.json'.format(track))
         r = requests.get(u)
         track_dict = r.json()
         track_url = track_dict['track_file_url']
         track_name = track_dict['track_file'].split('/')[-1]
-        c_logger.info('Downloading track: %s' % track_name)
+        c_logger.info('Downloading track: {0}'.format(track_name))
 
         download(track_url, track_name)
     return license, artist_website
@@ -77,7 +76,7 @@ def download_album_image(metadata):
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def write_item_xml(metadata, root=etree.Element('metadata')):
-    with open("%s_files.xml" % metadata['identifier'], 'w') as f:
+    with open("{0}_files.xml".format(metadata['identifier']), 'w') as f:
         f.write("<files />")
     for k,v in metadata.iteritems():
         subElement = etree.SubElement(root,k)
@@ -86,7 +85,7 @@ def write_item_xml(metadata, root=etree.Element('metadata')):
                               pretty_print=True, 
                               xml_declaration=True, 
                               encoding="utf-8")
-    with open("%s_meta.xml" % metadata['identifier'], 'w') as f:
+    with open("{0}_meta.xml".format(metadata['identifier']), 'w') as f:
         f.write(meta_xml)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
