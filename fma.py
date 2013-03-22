@@ -33,7 +33,7 @@ def get_page(page_number):
             sort_dir='desc',
             limit=50, 
             page=page_number, 
-            api_key='WS35J1MULKPQQOEI',
+            api_key='YRSCRTKY',
     )
     r = requests.get(url, params=params)
     return r.json()
