@@ -1,113 +1,152 @@
-#!/1/data/ENV/bin/python
-
+#!/usr/bin/env python
 import logging,logging.config
 import os
-from subprocess import call
 from datetime import datetime
-from time import sleep
 
-import ia
+import requests
+from lxml import etree
+import lxml.html
 
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 logging.config.fileConfig('logging.conf')
-cLogger = logging.getLogger('console')
+c_logger = logging.getLogger('console')
 
+DATA_DIR = '/1/incoming/tmp/FMA'
+SKIP = [x.strip() for x in 'itemlist.txt']
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def download(url, filename):
+    r = requests.get(url)
+    if r.status_code != 200:
+        return False
+    with open(filename, 'wb') as f:
+        f.write(r.content)
+    return True
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def get_page(page_number):
     url = 'http://freemusicarchive.org/api/get/albums.json'
-    params = dict(sort_by='album_date_released', sort_dir='desc',
-                  limit=50, page=page_number, api_key='WS35J1MULKPQQOEI')
-    dataset = ia.parse(url,params).json()
-    return dataset
+    params = dict(
+            sort_by='album_date_released', 
+            sort_dir='desc',
+            limit=50, 
+            page=page_number, 
+            api_key='WS35J1MULKPQQOEI',
+    )
+    r = requests.get(url, params=params)
+    return r.json()
 
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 def get_tracks(album_id):
-    url = 'http://freemusicarchive.org/api/get/tracks.json'
+    u = 'http://freemusicarchive.org/api/get/tracks.json'
     params = dict(album_id=album_id, limit=50, api_key='WS35J1MULKPQQOEI')
-    tracks = ia.parse(url,params).json()['dataset']
+    r = requests.get(u, params=params)
+    tracks = r.json()['dataset']
     track_ids = [ x['track_id'] for x in tracks ]
-    license = tracks[0]['license_url']
-    artist_website = tracks[0]['artist_website']
+    try:
+        license = tracks[0]['license_url']
+        artist_website = tracks[0]['artist_website']
+    except IndexError:
+        license = None
+        artist_website = None
+        logging.warning('No license! album ID: %s' % album_id)
 
     # Download every track for the given album.
     for track in track_ids:
-        url = ('http://freemusicarchive.org/services/track/single/%s.json' % 
-               track)
-        track_dict = ia.parse(url).json()
+        u = ('http://freemusicarchive.org/services/track/single/%s.json' %
+             track)
+        r = requests.get(u)
+        track_dict = r.json()
         track_url = track_dict['track_file_url']
         track_name = track_dict['track_file'].split('/')[-1]
-        cLogger.info('Downloading track: %s' % track_name)
-        wget = 'wget -q -nc "%s" -O "%s"' % (track_url, track_name)
-        call(wget, shell=True)
+        c_logger.info('Downloading track: %s' % track_name)
+
+        download(track_url, track_name)
     return license, artist_website
-    
-def main():
 
-    home = os.getcwd()
-    ia.make('/1/incoming/tmp/FMA').dir()
-    data_home = os.getcwd()
-    ia.perpetual_loop(home,data_home).start()
-    total_pages = get_page(1)['total_pages']
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def download_album_image(metadata):
+    r = requests.get(metadata['source'])
+    html = lxml.html.fromstring(r.content)
+    img_src = html.xpath("//div[@class='album-image']//img")[0].attrib['src']
+    img_url = img_src.replace('?width=290&height=290','')
+    filename = '{0}.jpg'.format(metadata['identifier'])
+    download(img_url, filename)
 
-    for page_number in range(0,total_pages):
-        print('\n\n\nPage: %s/%s\n\n' % (page_number,total_pages))
-        dataset = get_page(page_number)['dataset']
-        for item in dataset:
-            identifier = '%s-%s' % (item['album_handle'],item['album_id'])
-            identifier = identifier.strip('-').strip('_')
-            if len(identifier) <= 5:
-                logging.warning('Identifier too short: %s\nURL: %s' % 
-                                (identifier,item['album_url']))
-                continue
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def write_item_xml(metadata, root=etree.Element('metadata')):
+    with open("%s_files.xml" % metadata['identifier'], 'w') as f:
+        f.write("<files />")
+    for k,v in metadata.iteritems():
+        subElement = etree.SubElement(root,k)
+        subElement.text = v
+    meta_xml = etree.tostring(root, 
+                              pretty_print=True, 
+                              xml_declaration=True, 
+                              encoding="utf-8")
+    with open("%s_meta.xml" % metadata['identifier'], 'w') as f:
+        f.write(meta_xml)
 
-            print '\n\n~~~\n\nCreating item: %s\n' % identifier
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+def process_dataset(dataset):
+    if not os.path.exists(DATA_DIR):
+        os.mkdir(DATA_DIR)
+    os.chdir(DATA_DIR)
+    for item in dataset:
+        identifier = '{0}-{1}'.format(item['album_handle'][:70],
+                                      item['album_id']).strip('-_')
+        if identifier in SKIP:
+            continue
 
-            ## Create the item if it dosen't already exist!
-            #try:
-            #    if not ia.details(identifier).exists():
-            #        ia.make(identifier).dir()
-            #except JSONDecodeError:
-            #    logging.warning('Skipping: "%s", JSON Decode Error' % identifier)
-            #    continue
+        c_logger.info('Creating item: https://archive.org/details/{0}'.format(identifier))
+        if not os.path.exists(identifier):
+            os.mkdir(identifier)
+        os.chdir(identifier)
 
-            if not ia.details(identifier).exists():
-                ia.make(identifier).dir()
+        md = dict(
+                identifier=identifier,
+                collection='freemusicarchive',
+                mediatype='audio',
+                title=item['album_title'],
+                source=item['album_url'],
+                creator=item['artist_name'],
+                artist_url=item['artist_url'],
+                producer=item['album_producer'],
+                album_type=item['album_type'],
+                engineer=item['album_engineer'],
+                description=item['album_information'],
+                TEST=None,
+        )
+        try:
+            md['date'] = datetime.strptime(item['album_date_released'],
+                                           '%m/%d/%Y').strftime('%Y-%m-%d')
+        except TypeError:
+            c_logger.warning('This album has no date!')
 
-                date_parsed = datetime.strptime(item['album_date_released'], 
-                                                '%m/%d/%Y').strftime('%Y-%m-%d')
-                d = dict(title=item['album_title'], 
-                         source=item['album_url'],
-                         date=date_parsed,
-                         creator=item['artist_name'],
-                         artist_url=item['artist_url'],
-                         producer=item['album_producer'],
-                         album_type=item['album_type'],
-                         engineer=item['album_engineer'],
-                         description=item['album_information'],
-                         mediatype='audio',
-                         collection='freemusicarchive')
+        """Download every track on album. Also return licenseurl, artist_website
+        (the license URL and artist's website is only available in the 'track'
+        dataset).
+        """
+        tracks = get_tracks(item['album_id'])
+        md['licenseurl'] = tracks[0]
+        md['artist_website'] = tracks[1]
 
-                tracks = get_tracks(item['album_id'])
+        metadata = dict((k,v) for k,v in md.items() if v)
 
-                # The license URL + artist's website is only available
-                # in the track dataset. Assign to meta_dict, here.
-                d['licencesurl'] = tracks[0]
-                d['artist_website'] = tracks[1]
+        try:
+            download_album_image(metadata)
+        except IndexError:
+            c_logger.warning('This album does not have an image')
+        write_item_xml(metadata)
+        os.chdir(DATA_DIR)
+    c_logger.info('YOU HAVE SO MUCH MUSIC!')
 
-                # Delete dictionary items with empty values.
-                meta_dict = dict([(k,v) for k,v in d.items() if v != None])
-
-                make = ia.make(identifier, meta_dict)
-                cLogger.info('Grabbing album image')
-                make.get_img_url()
-                cLogger.info('Generating metadata files')
-                make.metadata()
-
-                os.chdir(data_home)
-
-            #else:
-            #    cLogger.info('%s is already in the Archive.' % identifier)
-
-    ia.perpetual_loop(home,data_home).end()
-    print("\n\n\nYOU HAVE SO MUCH MUSIC, GOODBYE!\n\n\n")
-
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 if __name__ == "__main__":
-    main()
+    total_pages = get_page(1)['total_pages']
+    for page_number in range(0, total_pages):
+        print '\nPage: {0}/{1}\n'.format(page_number,total_pages)
+        dataset = get_page(page_number)['dataset']
+        process_dataset(dataset)
